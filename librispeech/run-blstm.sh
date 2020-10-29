@@ -6,10 +6,10 @@
 stage=0
 subsampling=3
 traindir=data/train_960
-feat_affix=_fbank
-chaindir=exp/chain_blstm
+feat_affix=_fbank64
+chaindir=exp/chain_sub3
 num_leaves=7000
-model_dirname=blstm
+model_dirname=model_blstm_64
 batches_per_epoch=500
 num_epochs=300
 train_nj=4
@@ -57,13 +57,15 @@ if [ $stage -le 2 ]; then
 fi
 
 # Multigpu training of Chain-WideResNet with optimizer state averaging
-if [ $stage -le 3 ]; then
+if [ $stage -eq 3 ]; then
+  num_pdfs=$(tree-info ${tree}/tree | grep 'num-pdfs' | cut -d' ' -f2)
+
   resume_opts=
   if [ ! -z $resume ]; then
     resume_opts="--resume ${resume}"
   fi 
+  idim=$(feat-to-dim scp:data/train_960_fbank64/feats.scp - || exit 1;)
 
-  num_pdfs=$(tree-info ${tree}/tree | grep 'num-pdfs' | cut -d' ' -f2)
   train_async_parallel.sh ${resume_opts} \
     --gpu true \
     --objective LFMMI \
@@ -71,8 +73,10 @@ if [ $stage -le 3 ]; then
     --num-pdfs ${num_pdfs} \
     --subsample ${subsampling} \
     --model ChainBLSTM \
+    --datasetname HybridASR \
     --hdim 1024 \
     --num-layers 6 \
+    --idim ${idim} \
     --dropout 0.2 \
     --prefinal-dim 512 \
     --warmup 20000 \
@@ -81,21 +85,21 @@ if [ $stage -le 3 ]; then
     --l2 0.0001 \
     --weight-decay 1e-07 \
     --lr 0.0002 \
-    --batches-per-epoch ${batches_per_epoch} \
-    --num-epochs ${num_epochs} \
-    --validation-spks 0 \
-    --nj ${train_nj} \
+    --batches-per-epoch 500 \
+    --num-epochs 300 \
+    --nj 4 \
     "[ \
         {\
-    'data': '${traindir}${feat_affix}', \
-    'tgt': '${targets}', \
+    'data': 'data/train_960_fbank64', \
+    'tgt': 'data/train_960_fbank64/pdfid.${subsampling}.tgt', \
     'batchsize': 32, 'chunk_width': 140, \
-    'left_context': 10, 'right_context': 5, \
-    'mean_norm': True, 'var_norm': 'norm'
+    'left_context': 10, 'right_context': 5,
+    'mean_norm':True, 'var_norm':'norm'
         }\
      ]" \
     `dirname ${chaindir}`/${model_dirname}
 fi
+exit 1
 
 # Average the last 60 epochs
 if $average; then

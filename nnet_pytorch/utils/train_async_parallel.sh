@@ -88,7 +88,7 @@ if [ $# -ne 2 ] && [ $# -ne 3]; then
   echo " --layers ${layers} --bottleneck ${bottleneck}"
   echo " --width ${width} --depth ${depth}"
   # Print Ojective specific parameters
-  if [[ $objective == "LFMMI" || $objective == "SemisupLFMMI" ]]; then
+  if [[ $objective == "LFMMI" || $objective == "SemisupLFMMI" || $objective == "LFMMISpkDisc" || $objective == "LFMMIAux" ]]; then
     echo " --xent ${xent} --l2 ${l2} --denom-graph ${denom_graph}"
   elif [[ $objective == "SemisupLFMMI" || $objective == "LFMMI_EBM" ]]; then
     echo " --sgld-steps ${sgld_steps} --sgld-buffer ${sgld_buffer} --sgld-reinit-p ${sgld_reinit_p} --sgld-stepsize ${sgld_stepsize} --sgld-noise ${sgld_noise} --ebm-weight ${ebm_weight} --lfmmi-weight ${lfmmi_weight} --sgld-optim ${sgld_optim} --sgld-replay-correction ${sgld_replay_correction} --xent ${xent} --l2 ${l2} --denom-graph ${denom_graph} --l2-energy ${l2_energy} --sgld-warmup ${sgld_warmup} --sgld-decay ${sgld_decay} --sgld-thresh ${sgld_thresh} --sgld-weight-decay ${sgld_weight_decay}"
@@ -123,7 +123,7 @@ fi
 # GPU vs. CPU training command
 if $gpu; then
   gpu_opts="--gpu"
-  train_cmd="utils/queue.pl --mem 2G --gpu 1 --config conf/gpu.conf" 
+  train_cmd="utils/queue.pl --mem 8G --gpu 1 --config conf/gpu.conf" 
 fi
 
 if [ ! -z $init ]; then
@@ -144,7 +144,7 @@ fi
 
 # Objective Function options
 obj_fun_opts=""
-if [[ $objective = "LFMMI" || $objective = "SemisupLFMMI" ]]; then
+if [[ $objective = "LFMMI" || $objective = "SemisupLFMMI" || $objective = "LFMMISpkDisc" || $objective = "LFMMIAux" ]]; then
   obj_fun_opts="--denom-graph ${denom_graph} --xent-reg ${xent} --l2-reg ${l2}"
 fi
 

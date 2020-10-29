@@ -1,7 +1,7 @@
 #!/bin/bash
 
-data=/export/a15/vpanayotov/data
-subsampling=4
+data=/export/corpora5
+subsampling=3
 
 . ./cmd.sh
 . ./path.sh
@@ -10,7 +10,7 @@ subsampling=4
 
 set -euo pipefail
 
-for part in dev-clean dev-other test-clean test-other; do
+for part in dev-other test-clean test-other; do
   echo "-------------- Making ${part} ----------------------"
   dataname=$(echo ${part} | sed s/-/_/g)
   local/data_prep.sh $data/LibriSpeech/${part} data/${dataname}
@@ -21,9 +21,9 @@ for part in dev-clean dev-other test-clean test-other; do
   ./steps/compute_cmvn_stats.sh data/${dataname}_fbank
   ./utils/fix_data_dir.sh data/${dataname}_fbank
 
-  memmap_data.py data/${dataname}_fbank/feats.scp data/${dataname}_fbank/feats.scp.dat
-  python local/prepare_unlabeled_tgt.py --subsample ${subsampling} \
+  python ../nnet_pytorch/utils/prepare_unlabeled_tgt.py --subsample ${subsampling} \
     data/${dataname}_fbank/utt2num_frames > data/${dataname}_fbank/pdfid.${subsampling}.tgt
+  ../nnet_pytorch/utils/split_memmap_data.sh data/${dataname}_fbank data/${dataname}_fbank/pdfid.${subsampling}.tgt 20
 done
 
 exit 0;

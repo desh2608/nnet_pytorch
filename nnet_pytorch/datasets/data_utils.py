@@ -89,16 +89,20 @@ def load_cmvn(filename):
         spk2cmvn[k] = {'mu': m[0, :-1] / total, 'var': m[1, :-1] / total}
     return spk2cmvn
 
-def load_ivectors(filename):
+def load_ivector_paths(filename):
     '''
         Load the ivectors into a dictionary.
         Input argument may be an ark or scp file.
     '''
-    ivectors = {}
-    for key, vec in kaldi_io.read_vec_flt_scp(filename):
-        ivectors[key] = np.array(vec)
-    return ivectors
+    ivector_paths = {}
+    with open(filename, 'r') as f:
+        for line in f:
+            utt, path = line.strip().split()
+            ivector_paths[utt] = path
+    return ivector_paths
 
+def load_ivector(path, dtype=np.float32):
+    return np.array(kaldi_io.read_vec_flt(path), dtype=dtype)
 
 def load_utt2spk(f):
     '''

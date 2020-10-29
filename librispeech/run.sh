@@ -184,10 +184,12 @@ fi
 
 if [ $stage -le 15 ]; then
   traindir=data/train_960
-  feat_affix=_fbank
+  feat_affix=_fbank64
   utils/copy_data_dir.sh ${traindir} ${traindir}${feat_affix}
   steps/make_fbank.sh --cmd "$train_cmd" --nj 40 ${traindir}${feat_affix} exp/make_fbank/train_960 fbank
   utils/fix_data_dir.sh ${traindir}${feat_affix}
   steps/compute_cmvn_stats.sh ${traindir}${feat_affix}
   utils/fix_data_dir.sh ${traindir}${feat_affix}
 fi
+
+exit 0

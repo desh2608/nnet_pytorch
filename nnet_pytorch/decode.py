@@ -7,6 +7,7 @@ import json
 import subprocess
 import numpy as np
 import torch
+import torch.nn.functional as F
 import datasets
 import models
 from LRScheduler import LRScheduler
@@ -31,7 +32,6 @@ def main():
     # Load experiment configurations so that decoding uses the same parameters
     # as training
     conf = json.load(open(args.modeldir + '/conf.1.json'))
-    
     dataset_args = eval(conf['datasets'])[0]
     
     # Load the decoding dataset
@@ -48,9 +48,15 @@ def main():
         print("Dummy targets not found")
         sys.exit(1)
     
+    # Update the dataset dictionary to reflect evaluation set
     dataset_args.update(
         {'data':args.datadir, 'tgt':targets, 'subsample': subsample_val,
-        'ivector_dim': args.ivector_dim})
+        'ivector_dim': args.ivector_dim, 'utt_subset': args.utt_subset})
+    if args.ivector_scp is not None:
+        dataset_args.update({'ivectors':args.ivector_scp})
+    if args.aux_targets is not None:
+        dataset_args.update({'aux_tgt': args.aux_targets})
+    conf.update({'datasets':[dataset_args]})
     dataset = datasets.DATASETS[conf['datasetname']].build_dataset(dataset_args)
 
     # We just need to add in the input dimensions. This depends on the type of
@@ -92,17 +98,20 @@ def decode(args, dataset, model, priors, device='cpu'):
     # generation.
     lat_output = '''ark:| copy-feats ark:- ark:- |\
     latgen-faster-mapped --min-active={} --max-active={} \
-    --max-mem={} \
+    --max-mem={} --prune-interval={} \
     --lattice-beam={} --beam={} \
     --acoustic-scale={} --allow-partial=true \
     --word-symbol-table={} \
     {} {} ark:- ark:- | lattice-scale --acoustic-scale={} ark:- ark:- |\
     gzip -c > {}/lat.{}.gz'''.format(
-        args.min_active, args.max_active, args.max_mem,
+        args.min_active, args.max_active, args.max_mem, args.prune_interval,
         args.lattice_beam, args.beam, args.acoustic_scale,
         args.words_file, args.trans_mdl, args.hclg,
         args.post_decode_acwt, args.dumpdir, args.job
     )
+    post_output = {}
+    entropy = {}
+    max_prob = {}
 
     # Do the decoding (dumping senone posteriors)
     model.eval()
@@ -125,6 +134,9 @@ def decode(args, dataset, model, priors, device='cpu'):
                         f, np.concatenate(utt_mat, axis=0)[:utt_length, :],
                         key=prev_key.decode('utf-8')
                     )
+                    post_output[prev_key.decode('utf-8')] = np.concatenate(utt_mat, axis=0)[:utt_length, :].tolist()
+                    entropy[prev_key.decode('utf-8')] = compute_per_frame_entropy(np.concatenate(utt_mat, axis=0)[:utt_length, :]).tolist()
+                    max_prob[prev_key.decode('utf-8')] = compute_per_frame_max(np.concatenate(utt_mat, axis=0)[:utt_length, :]).tolist()
                     utt_mat = []
                 utt_mat.append(mat - args.prior_scale * priors)
                 prev_key = key
@@ -137,6 +149,28 @@ def decode(args, dataset, model, priors, device='cpu'):
                     np.concatenate(utt_mat, axis=0)[:utt_length, :],
                     key=prev_key.decode('utf-8')
                 )
+                post_output[prev_key.decode('utf-8')] = np.concatenate(utt_mat, axis=0)[:utt_length, :].tolist()
+                entropy[prev_key.decode('utf-8')] = compute_per_frame_entropy(np.concatenate(utt_mat, axis=0)[:utt_length, :]).tolist()
+                max_prob[prev_key.decode('utf-8')] = compute_per_frame_max(np.concatenate(utt_mat, axis=0)[:utt_length, :]).tolist()
+
+    if args.save_post:
+        with open('{}/post.{}.json'.format(args.dumpdir,args.job),'w') as fp, \
+            open('{}/entropy.{}.json'.format(args.dumpdir,args.job), 'w') as fe, \
+            open('{}/max_prob.{}.json'.format(args.dumpdir,args.job), 'w') as fm:
+            json.dump(post_output, fp)
+            json.dump(entropy, fe)
+            json.dump(max_prob, fm)
+
+def compute_per_frame_entropy(posteriors):
+    # Transform posteriors into probability distribution
+    probs = np.exp(posteriors)/np.exp(posteriors).sum(axis=1, keepdims=True)
+    H = np.sum(-probs * np.log2(probs), axis=1)
+    return H
+
+def compute_per_frame_max(posteriors):
+    probs = np.exp(posteriors)/np.exp(posteriors).sum(axis=1, keepdims=True)
+    return np.max(probs, axis=1)
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -146,6 +180,8 @@ def parse_arguments():
     parser.add_argument('--checkpoint', default='final.mdl')
     parser.add_argument('--idim', type=int)
     parser.add_argument('--ivector-dim', type=int, default=None)
+    parser.add_argument('--ivector-scp', type=str, default=None)
+    parser.add_argument('--aux-targets', type=str, default=None)
     parser.add_argument('--prior-scale', type=float, default=1.0)
     parser.add_argument('--prior-floor', type=float, default=-20)
     parser.add_argument('--prior-name', default='priors')
@@ -157,11 +193,13 @@ def parse_arguments():
     parser.add_argument('--max-mem', type=int, default=50000000)
     parser.add_argument('--lattice-beam', type=float, default=8.0)
     parser.add_argument('--beam', type=float, default=15.0)
+    parser.add_argument('--prune-interval', type=int, default=25)
     parser.add_argument('--acoustic-scale', type=float, default=0.1)
     parser.add_argument('--post-decode-acwt', type=float, default=1.0)
     parser.add_argument('--job', type=int, default=1)
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--batchsize', type=int, default=256)
+    parser.add_argument('--save-post', action='store_true')
    
     # Args specific to different components
     args, leftover = parser.parse_known_args()

@@ -10,17 +10,15 @@ modules = glob.glob(
 )
 
 for f in modules:
-    if os.path.isfile(f) and '__init__.py' not in f and 'data_utils' not in f \
-        and 'batch_generators' not in f:
+    if os.path.isfile(f) and '__init__.py' not in f and 'data_utils' not in f:
         module_name, ext = os.path.splitext(f)
         if ext == '.py':
             module = importlib.import_module('datasets.' + os.path.basename(module_name))
 
 DATASETS = {
     'HybridASR': HybridASR.HybridAsrDataset,
-<<<<<<< HEAD
-    'HybridASRWithIvector': HybridASRWithIvector.HybridAsrWithIvectorDataset
-=======
->>>>>>> 5fcf0d9f6497d1f84b231a809de492c63b0a2dae
+    'HybridASRWithIvector': HybridASRWithIvector.HybridAsrWithIvectorDataset,
+    'HybridASRWithIvectorAuxTgt': HybridASRWithIvectorAuxTgt.HybridAsrWithIvectorAuxTgtDataset,
+    'HybridASRWithAuxTgt': HybridASRWithAuxTgt.HybridAsrWithAuxTgtDataset
 }
 

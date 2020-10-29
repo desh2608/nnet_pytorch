@@ -63,6 +63,7 @@ def main():
     for ds in dataset_args:
         ds.update({'subsample': args.subsample})
         ds.update({'ivector_dim': args.ivector_dim})
+        ds.update({'utt_subset': args.utt_subset})
         datasets_list.append(
             datasets.DATASETS[args.datasetname].build_dataset(ds)
         )
@@ -230,7 +231,9 @@ def parse_arguments():
     parser.add_argument('--datasetname', default='HybridASR',
         choices=[
             'HybridASR',
-            'HybridASRWithIvector'
+            'HybridASRWithIvector',
+            'HybridASRWithIvectorAuxTgt',
+            'HybridASRWithAuxTgt'
         ])
     parser.add_argument('--expdir')
     parser.add_argument('--num-targets', type=int)
@@ -260,6 +263,8 @@ def parse_arguments():
             'SemisupLFMMI',
             'LFMMI_EBM',
             'CrossEntropy_EBM',
+            'LFMMISpkDisc',
+            'LFMMIAux',
         ],
     )
     parser.add_argument('--subsample', type=int, default=3)
