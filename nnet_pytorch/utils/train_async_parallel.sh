@@ -5,6 +5,7 @@
 # Training (batch and gpu configs)
 nj=2
 gpu=false
+gpu_mem=2G
 delay_updates=1
 num_epochs=20
 validation_spks=30
@@ -27,6 +28,7 @@ idim=80
 subsample=3
 model=ChainTDNN #TDNN, ChainTDNN, Resnet, ChainResnet, WideResnet, ChainWideResnet
 hdim=625
+bottleneck_dim=256
 num_layers=12
 prefinal_dim=192
 layers="[[625, 3, 1], [625, 1, 3], [625, 3, 1], [625, 3, 1]]"
@@ -123,7 +125,7 @@ fi
 # GPU vs. CPU training command
 if $gpu; then
   gpu_opts="--gpu"
-  train_cmd="utils/queue.pl --mem 8G --gpu 1 --config conf/gpu.conf" 
+  train_cmd="utils/retry.pl utils/queue.pl --mem ${gpu_mem} --gpu 1 --config conf/gpu.conf" 
 fi
 
 if [ ! -z $init ]; then
@@ -160,6 +162,8 @@ fi
 mdl_opts=()
 if [[ $model = "TDNN" || $model = "ChainTDNN" ]]; then
   mdl_opts=('--tdnn-hdim' "${hdim}" '--tdnn-num-layers' "${num_layers}" '--tdnn-dropout' "${dropout}" '--tdnn-prefinal-dim' "${prefinal_dim}")
+elif [[ $model = "TDNNF" || $model = "ChainTDNNF" ]]; then
+  mdl_opts=('--tdnnf-hdim' "${hdim}" '--tdnnf-bottleneck-dim' "${bottleneck_dim}" '--tdnnf-num-layers' "${num_layers}" '--tdnnf-dropout' "${dropout}" '--tdnnf-prefinal-dim' "${prefinal_dim}")
 elif [[ $model = "BLSTM" || $model = "ChainBLSTM" || $model = "BLSTMWithIvector" || $model = "ChainBLSTMWithIvector" ]]; then
   mdl_opts=('--blstm-hdim' "${hdim}" '--blstm-num-layers' "${num_layers}" '--blstm-dropout' "${dropout}" '--blstm-prefinal-dim' "${prefinal_dim}")
 elif [[ $model = "Resnet" || $model = "ChainResnet" ]]; then

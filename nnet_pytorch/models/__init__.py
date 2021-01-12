@@ -18,6 +18,8 @@ for f in modules:
 MODELS = {
     'TDNN': TDNN.TDNN,
     'ChainTDNN': TDNN.ChainTDNN,
+    'TDNNF': TDNNF.TDNNF,
+    'ChainTDNNF': TDNNF.ChainTDNNF,
     'Resnet': Resnet.SpeechResnet,
     'ChainResnet': Resnet.ChainSpeechResnet,
     'WideResnet': WideResnet.SpeechResnet,

@@ -244,6 +244,8 @@ def parse_arguments():
         choices=[
             'TDNN',
             'ChainTDNN',
+            'TDNNF',
+            'ChainTDNNF',
             'Resnet',
             'ChainResnet',
             'WideResnet',
